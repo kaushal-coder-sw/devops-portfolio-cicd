@@ -1,0 +1,53 @@
+name: Deploy Portfolio to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout Code
+        uses: actions/checkout@v3
+
+      - name: 🔐 Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: 🔑 Add EC2 Host to Known Hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 SSH into EC2 and Deploy
+        run: |
+          ssh ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+          set -e
+
+          echo "🔄 Stopping old container (if any)..."
+          docker stop portfolio || true
+          docker rm portfolio || true
+
+          echo "🧹 Cleaning up old project directory..."
+          rm -rf ~/devops-portfolio || true
+
+          echo "⬇️ Cloning latest code..."
+          git clone https://github.com/${{ github.repository }} ~/devops-portfolio
+          cd ~/devops-portfolio
+
+          echo "🐳 Building Docker image..."
+          docker build -t portfolio .
+
+          echo "🚀 Running container..."
+          docker run -d --name portfolio -p 80:80 portfolio
+
+          echo "🩺 Running health check..."
+          chmod +x scripts/health_check.sh
+          ./scripts/health_check.sh
+
+          echo "✅ Deployment successful!"
+          EOF
