@@ -29,20 +29,34 @@ fi
 
 cd devops-portfolio-cicd
 
+echo "🐳 Building Docker image..."
 sudo docker build -t portfolio .
+
+sleep 10
+
+if [ $? -ne 0 ]; then
+  echo "❌ Docker image build failed!"
+  exit 1
+fi
+
+# Run the container
+echo "🚀 Running container..."
 sudo docker run -d -p 80:80 --name portfolio portfolio
 
-# Health Check
-APP_URL="http://localhost"
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" $APP_URL)
+# Wait for container to start (up to 30 seconds)
+echo "⏳ Waiting for container to become healthy..."
+for i in {1..10}; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost)
+  if [ "$STATUS" -eq 200 ]; then
+    echo "✅ Health check passed. App running at http://<instance-public-ip>"
+    exit 0
+  fi
+  echo "⏳ Waiting... ($i/10)"
+  sleep 3
+done
 
-if [ "$STATUS" -ne 200 ]; then
-  echo "❌ Health check failed! Status: $STATUS"
-  echo "Rolling back..."
-
-  sudo docker stop portfolio || true
-  sudo docker rm portfolio || true
-  exit 1
-else
-  echo "✅ Health check passed. App running at $APP_URL"
-fi
+echo "❌ Health check failed! Status: $STATUS"
+echo "Rolling back..."
+sudo docker stop portfolio || true
+sudo docker rm portfolio || true
+exit 1
