@@ -29,8 +29,8 @@ jobs:
           set -e
 
           echo "🔄 Stopping old container (if any)..."
-          docker stop portfolio || true
-          docker rm portfolio || true
+          sudo docker stop portfolio || true
+          sudo docker rm portfolio || true
 
           echo "🧹 Cleaning up old project directory..."
           rm -rf ~/devops-portfolio || true
@@ -40,10 +40,10 @@ jobs:
           cd ~/devops-portfolio
 
           echo "🐳 Building Docker image..."
-          docker build -t portfolio .
+          sudo docker build -t portfolio .
 
           echo "🚀 Running container..."
-          docker run -d --name portfolio -p 80:80 portfolio
+          sudo docker run -d --name portfolio -p 80:80 portfolio
 
           echo "🩺 Running health check..."
           chmod +x scripts/health_check.sh
